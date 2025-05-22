@@ -76,6 +76,50 @@ app.get('/', (req, res) => {
     </script>
   `);
 });
+const mutedFile = path.join(__dirname, 'muted.json');
+
+app.post('/mute-entry', async (req, res) => {
+  try {
+    const entryToMute = req.body;
+    if (!entryToMute || !entryToMute.ip || !entryToMute.timestamp) {
+      return res.status(400).json({ status: 'error', message: 'Invalid entry data' });
+    }
+
+    // Read current visits
+    let visitsData = [];
+    try {
+      const fileData = await fs.readFile(visitsFile, 'utf8');
+      visitsData = fileData ? JSON.parse(fileData) : [];
+    } catch {
+      visitsData = [];
+    }
+
+    // Read muted data
+    let mutedData = [];
+    try {
+      const mutedFileData = await fs.readFile(mutedFile, 'utf8');
+      mutedData = mutedFileData ? JSON.parse(mutedFileData) : [];
+    } catch {
+      mutedData = [];
+    }
+
+    // Remove the muted entry from visitsData (match by ip and timestamp)
+    visitsData = visitsData.filter(v => !(v.ip === entryToMute.ip && v.timestamp === entryToMute.timestamp));
+
+    // Add to mutedData
+    mutedData.push(entryToMute);
+
+    // Write updated data back
+    await fs.writeFile(visitsFile, JSON.stringify(visitsData, null, 2));
+    await fs.writeFile(mutedFile, JSON.stringify(mutedData, null, 2));
+
+    res.json({ status: 'ok', message: 'Entry muted successfully' });
+  } catch (err) {
+    console.error('Error muting entry:', err);
+    res.status(500).json({ status: 'error', message: 'Server error' });
+  }
+});
+
 
 // Start server
 app.listen(PORT, () => {
